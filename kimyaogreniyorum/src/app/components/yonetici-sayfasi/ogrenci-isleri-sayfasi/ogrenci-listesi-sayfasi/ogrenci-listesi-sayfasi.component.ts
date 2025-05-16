@@ -54,6 +54,35 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
       const user = JSON.parse(userStr);
       token = user.token || '';
     }
+    
+    // Öğrencileri yükle
+    this.http.get<User[]>('/server/api/ogrenciler_listesi.php', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).subscribe({
+      next: (data) => {
+        this.students = data.filter(user => user.rutbe === 'ogrenci');
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Öğrenci listesi yüklenirken hata oluştu:', error);
+        this.isLoading = false;
+      }
+    });
+    
+    // Öğretmenleri yükle
+    this.http.get<User[]>('/server/api/ogretmenler_listesi.php', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).subscribe({
+      next: (data) => {
+        this.teachers = data.filter(user => user.rutbe === 'ogretmen');
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Öğretmen listesi yüklenirken hata oluştu:', error);
+        this.isLoading = false;
+      }
+    });;
+    }
 
     // Yeni oluşturulan API'ye istek gönder - tüm öğrencileri getirir
     this.http
