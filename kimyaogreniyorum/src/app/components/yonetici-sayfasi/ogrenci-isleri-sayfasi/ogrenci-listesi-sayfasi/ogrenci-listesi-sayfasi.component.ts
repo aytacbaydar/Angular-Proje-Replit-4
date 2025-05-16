@@ -66,34 +66,41 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
       token = user.token || '';
     }
 
-    // Öğrenciler
+    // Tüm kullanıcıları getiren API'ye istek gönder
     this.http
       .get<any>('./server/api/ogrenciler_listesi.php', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
       .subscribe({
         next: (response) => {
           if (response.success) {
-            this.students = response.data.filter((user: User) => user.rutbe === 'ogrenci');
-            this.stats.totalStudents = this.students.length;
-            // 24 saat içinde kaydolanları bul
-            const oneDayAgo = new Date();
-            oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-            this.newUsers = response.data.filter((user: User) => {
-              if (!user.created_at) return false;
-              const createDate = new Date(user.created_at);
-              return createDate > oneDayAgo;
-            });
-            this.stats.newUsersToday = this.newUsers.length;
+            // API yanıtından gelen veriyi al
+            const users = Array.isArray(response.data) ? response.data : [];
+
+            // Kullanıcıları rütbelerine göre filtrele
+            this.students = users.filter(
+              (user: User) => user.rutbe === 'ogrenci' && user.aktif
+            );
+
+            // Öğretmenleri filtrele
+            this.teachers = users.filter(
+              (user: User) => user.rutbe === 'ogretmen' && user.aktif
+            );
+
+            // Onay bekleyen kullanıcılar
+            this.newUsers = users.filter((user: User) => !user.aktif);
+
+            console.log('Yüklenen öğrenciler:', this.students);
+            console.log('Yüklenen öğretmenler:', this.teachers);
+          } else {
+            console.error('API yanıtı başarısız:', response.error);
           }
+          this.isLoading = false;
         },
         error: (error) => {
-          console.error('Öğrenci listesi alınırken hata:', error);
+          console.error('API hatası:', error);
+          this.isLoading = false;
         },
-        complete: () => {
-          // Öğretmenleri yükle
-          this.loadTeachers(token);
-        }
       });
   }
 
@@ -197,7 +204,7 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
       if (!confirm('Bu kullanıcıyı onaylamak istediğinizden emin misiniz?')) {
         return;
       }
-  
+
       // LocalStorage veya sessionStorage'dan token'ı al
       let token = '';
       const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -205,14 +212,14 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
         const user = JSON.parse(userStr);
         token = user.token || '';
       }
-  
+
       // Kullanıcı verilerini hazırla
       const userData = {
         id: userId,
         rutbe: 'ogrenci', // Onaylandığında öğrenci olarak ayarla
         aktif: 1 // Aktif hesap olarak ayarla
       };
-  
+
       this.http
         .post<any>('./server/api/kullanici_guncelle.php', userData, {
           headers: { 
@@ -235,13 +242,13 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
           },
         });
     }
-  
+
     // Yeni kullanıcıyı reddetme fonksiyonu
     rejectUser(userId: number) {
       if (!confirm('Bu kullanıcıyı reddetmek istediğinizden emin misiniz? Bu işlem kullanıcıyı silecektir.')) {
         return;
       }
-  
+
       // LocalStorage veya sessionStorage'dan token'ı al
       let token = '';
       const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -249,7 +256,7 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
         const user = JSON.parse(userStr);
         token = user.token || '';
       }
-  
+
       this.http
         .post<any>('./server/api/ogrenci_sil.php', { id: userId }, {
           headers: { 
