@@ -13,4 +13,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd kimyaogreniyorum && npm run start"
+args = "cd kimyaogreniyorum && npx -y ng serve --host 0.0.0.0 --disable-host-check"

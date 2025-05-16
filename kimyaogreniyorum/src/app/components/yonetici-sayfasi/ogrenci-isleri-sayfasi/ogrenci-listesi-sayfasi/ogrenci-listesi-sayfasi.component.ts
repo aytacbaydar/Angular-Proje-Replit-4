@@ -82,20 +82,19 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
               (user: User) => user.rutbe === 'ogrenci' && user.aktif
             );
 
-            // Öğretmenleri filtrele
-            this.teachers = users.filter(
-              (user: User) => user.rutbe === 'ogretmen' && user.aktif
-            );
-
             // Onay bekleyen kullanıcılar
             this.newUsers = users.filter((user: User) => !user.aktif);
+            
+            // Öğretmenleri ayrı API ile yükle
+            this.loadTeachers(token);
 
             console.log('Yüklenen öğrenciler:', this.students);
-            console.log('Yüklenen öğretmenler:', this.teachers);
+            this.stats.totalStudents = this.students.length;
+            this.stats.newUsersToday = this.newUsers.length;
           } else {
             console.error('API yanıtı başarısız:', response.error);
           }
-          this.isLoading = false;
+          // Öğretmenler ayrı yüklendiği için isLoading'i burada kapatmıyoruz
         },
         error: (error) => {
           console.error('API hatası:', error);
@@ -114,6 +113,9 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
           if (response.success) {
             this.teachers = response.data;
             this.stats.totalTeachers = this.teachers.length;
+            console.log('Yüklenen öğretmenler:', this.teachers);
+          } else {
+            console.error('Öğretmen listesi alınamadı:', response.error);
           }
         },
         error: (error) => {
@@ -121,6 +123,7 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
         },
         complete: () => {
           this.isLoading = false;
+        }oading = false;
         }
       });
   }
