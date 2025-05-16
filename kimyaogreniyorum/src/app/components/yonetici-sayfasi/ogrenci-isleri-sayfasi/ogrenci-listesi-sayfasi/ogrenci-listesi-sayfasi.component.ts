@@ -22,6 +22,12 @@ interface User {
   brans?: string;
 }
 
+interface Stats {
+  totalStudents: number;
+  totalTeachers: number;
+  newUsersToday: number;
+}
+
 @Component({
   selector: 'app-ogrenci-listesi-sayfasi',
   standalone: false,
@@ -34,6 +40,11 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
   newUsers: User[] = [];
   isLoading = true;
   activeTab: 'students' | 'teachers' | 'new' = 'students';
+  stats: Stats = {
+    totalStudents: 0,
+    totalTeachers: 0,
+    newUsersToday: 0
+  };
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -55,38 +66,55 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
       token = user.token || '';
     }
 
-    // Yeni oluşturulan API'ye istek gönder - tüm öğrencileri getirir
+    // Öğrenciler
     this.http
       .get<any>('./server/api/ogrenciler_listesi.php', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       })
       .subscribe({
         next: (response) => {
           if (response.success) {
-            // API yanıtından gelen veriyi al
-            const users = Array.isArray(response.data) ? response.data : [];
-
-            // Kullanıcıları rütbelerine göre filtrele
-            this.students = users.filter(
-              (user: User) => user.rutbe === 'ogrenci' && user.aktif
-            );
-
-            this.teachers = users.filter(
-              (user: User) => user.rutbe === 'ogretmen' && user.aktif
-            );
-
-            this.newUsers = users.filter((user: User) => !user.aktif);
-
-            console.log('Yüklenen öğrenciler:', this.students);
-          } else {
-            console.error('API yanıtı başarısız:', response.error);
+            this.students = response.data.filter((user: User) => user.rutbe === 'ogrenci');
+            this.stats.totalStudents = this.students.length;
+            // 24 saat içinde kaydolanları bul
+            const oneDayAgo = new Date();
+            oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+            this.newUsers = response.data.filter((user: User) => {
+              if (!user.created_at) return false;
+              const createDate = new Date(user.created_at);
+              return createDate > oneDayAgo;
+            });
+            this.stats.newUsersToday = this.newUsers.length;
           }
-          this.isLoading = false;
         },
         error: (error) => {
-          console.error('API hatası:', error);
-          this.isLoading = false;
+          console.error('Öğrenci listesi alınırken hata:', error);
         },
+        complete: () => {
+          // Öğretmenleri yükle
+          this.loadTeachers(token);
+        }
+      });
+  }
+
+  loadTeachers(token: string): void {
+    this.http
+      .get<any>('./server/api/ogretmenler_listesi.php', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.teachers = response.data;
+            this.stats.totalTeachers = this.teachers.length;
+          }
+        },
+        error: (error) => {
+          console.error('Öğretmen listesi alınırken hata:', error);
+        },
+        complete: () => {
+          this.isLoading = false;
+        }
       });
   }
 
@@ -141,7 +169,7 @@ export class OgrenciListesiSayfasiComponent implements OnInit {
     }
 
     this.http
-      .post<any>('./server/api/ogrenci_sil.php', { id }, {
+      .post<any>('./server/api/ogretmen_sil.php', { id }, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
